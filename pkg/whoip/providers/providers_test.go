@@ -1,7 +1,6 @@
 package whoip
 
 import (
-	"fmt"
 	"net"
 	"sync"
 	"testing"
@@ -22,10 +21,7 @@ func fetchFakeData(provider *ProviderData) error {
 	provider.Mu.Lock()
 	defer provider.Mu.Unlock()
 
-	now := time.Now()
-	secondsSinceLastUpdate := now.Sub(provider.LastUpdate).Seconds()
-	if secondsSinceLastUpdate < 24*60*60 {
-		fmt.Printf("Data for provider %s is up to date (%f seconds since last update)\n", provider.Name, secondsSinceLastUpdate)
+	if time.Since(provider.LastUpdate) < 24*time.Hour {
 		return nil
 	}
 
@@ -53,7 +49,7 @@ func fetchFakeData(provider *ProviderData) error {
 	}
 
 	provider.IPRanges.Prefixes = fakePrefixes
-	provider.LastUpdate = now
+	provider.LastUpdate = time.Now()
 	return nil
 }
 

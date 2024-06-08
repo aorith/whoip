@@ -13,7 +13,7 @@ func fetchGoogleData(provider *ProviderData) error {
 	provider.Mu.Lock()
 	defer provider.Mu.Unlock()
 
-	if provider.LastUpdate.After(time.Now().Add(-24 * time.Hour)) {
+	if time.Since(provider.LastUpdate) < 24*time.Hour {
 		return nil // Data is up to date
 	}
 
