@@ -16,10 +16,12 @@ var testProviders = map[string]*ProviderData{
 	},
 }
 
+var fakeMu sync.Mutex
+
 // fetchFakeData fetches fake data for testing purposes.
 func fetchFakeData(provider *ProviderData) error {
-	provider.Mu.Lock()
-	defer provider.Mu.Unlock()
+	fakeMu.Lock()
+	defer fakeMu.Unlock()
 
 	if time.Since(provider.LastUpdate) < 24*time.Hour {
 		return nil

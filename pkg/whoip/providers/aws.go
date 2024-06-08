@@ -5,16 +5,29 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 )
 
+var awsMu sync.Mutex
+
 // fetchAWSData fetches the AWS data and updates the ProviderData struct.
 func fetchAWSData(provider *ProviderData) error {
-	provider.Mu.Lock()
-	defer provider.Mu.Unlock()
+	awsMu.Lock()
+	defer awsMu.Unlock()
 
-	if time.Since(provider.LastUpdate) < 24*time.Hour {
+	if time.Since(provider.LastUpdate) < provider.RefreshInterval {
 		return nil // Data is up to date
+	}
+
+	pd, err := loadFromGob(provider.DataFilename)
+	if err == nil && time.Since(pd.LastUpdate) < provider.RefreshInterval {
+		provider.URL = pd.URL
+		provider.Name = pd.Name
+		provider.Description = pd.Description
+		provider.LastUpdate = pd.LastUpdate
+		provider.IPRanges = pd.IPRanges
+		return nil
 	}
 
 	resp, err := http.Get(provider.URL)
@@ -61,5 +74,10 @@ func fetchAWSData(provider *ProviderData) error {
 
 	provider.IPRanges.Prefixes = prefixes
 	provider.LastUpdate = time.Now()
+
+	if err = saveToGob(provider.DataFilename, *provider); err != nil {
+		return fmt.Errorf("failed to save data to Gob: %v", err)
+	}
+
 	return nil
 }
