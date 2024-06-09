@@ -6,16 +6,13 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"sync"
 	"time"
 )
 
-var awsMu sync.Mutex
-
 // fetchAWSData fetches the AWS data and updates the MetaData.
 func fetchAWSData(src *IPSource) error {
-	awsMu.Lock()
-	defer awsMu.Unlock()
+	src.Mu.Lock()
+	defer src.Mu.Unlock()
 
 	if time.Since(src.MetaData.LastUpdate) < src.RefreshInterval {
 		return nil // Data is up to date

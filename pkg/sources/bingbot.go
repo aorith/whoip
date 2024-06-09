@@ -6,16 +6,13 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"sync"
 	"time"
 )
 
-var googleMu sync.Mutex
-
-// fetchGoogleData fetches the Google data and updates the MetaData.
-func fetchGoogleData(src *IPSource) error {
-	googleMu.Lock()
-	defer googleMu.Unlock()
+// fetchBingBotData fetches the Google data and updates the MetaData.
+func fetchBingBotData(src *IPSource) error {
+	src.Mu.Lock()
+	defer src.Mu.Unlock()
 
 	if time.Since(src.MetaData.LastUpdate) < src.RefreshInterval {
 		return nil // Data is up to date
@@ -39,12 +36,9 @@ func fetchGoogleData(src *IPSource) error {
 	}
 
 	var fetchedData struct {
-		SyncToken    string `json:"syncToken"`
-		CreationTime string `json:"creationTime"`
-		Prefixes     []struct {
-			IPv4Prefix string `json:"ipv4Prefix"`
-			Service    string `json:"service"`
-			Scope      string `json:"scope"`
+		Prefixes []struct {
+			IPv4Prefix string `json:"ipv4Prefix,omitempty"`
+			IPv6Prefix string `json:"ipv6Prefix,omitempty"`
 		} `json:"prefixes"`
 	}
 
@@ -55,16 +49,16 @@ func fetchGoogleData(src *IPSource) error {
 
 	var prefixes []Prefix
 	for _, p := range fetchedData.Prefixes {
-		_, network, err := net.ParseCIDR(p.IPv4Prefix)
+		var network *net.IPNet
+		_, network, err = net.ParseCIDR(p.IPv4Prefix)
 		if err != nil {
-			continue
+			_, network, err = net.ParseCIDR(p.IPv6Prefix)
+			if err != nil {
+				continue
+			}
 		}
 		prefixes = append(prefixes, Prefix{
 			Network: *network,
-			Details: map[string]string{
-				"Service": p.Service,
-				"Scope":   p.Scope,
-			},
 		})
 	}
 

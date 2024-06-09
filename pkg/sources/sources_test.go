@@ -12,18 +12,16 @@ var testSources = map[string]*IPSource{
 		URL:             "https://www.example.com/ranges.json",
 		Name:            "Fake Source",
 		Description:     "A fake source for testing purposes",
-		Categories:      []Category{DataCenter},
+		Categories:      []Category{Categories["datacenter"]},
 		RefreshInterval: 1 * time.Minute,
 		Fetcher:         fetchFakeData,
 	},
 }
 
-var fakeMu sync.Mutex
-
 // fetchFakeData fetches fake data for testing purposes.
 func fetchFakeData(src *IPSource) error {
-	fakeMu.Lock()
-	defer fakeMu.Unlock()
+	src.Mu.Lock()
+	defer src.Mu.Unlock()
 
 	if time.Since(src.MetaData.LastUpdate) < src.RefreshInterval {
 		return nil
@@ -57,8 +55,38 @@ func fetchFakeData(src *IPSource) error {
 	return nil
 }
 
+func TestNoDuplicateDataFilename(t *testing.T) {
+	seen := make(map[string]bool)
+	for _, src := range IPRangeSources {
+		if seen[src.DataFilename] {
+			t.Errorf("Duplicate data filename: '%s' on the source '%s'.", src.DataFilename, src.Name)
+		}
+		seen[src.DataFilename] = true
+	}
+}
+
+func TestNoDuplicateURL(t *testing.T) {
+	seen := make(map[string]bool)
+	for _, src := range IPRangeSources {
+		if seen[src.URL] {
+			t.Errorf("Duplicate URL: '%s' on the source '%s'.", src.URL, src.Name)
+		}
+		seen[src.URL] = true
+	}
+}
+
+func TestTypoInCategories(t *testing.T) {
+	for _, src := range IPRangeSources {
+		for _, cat := range src.Categories {
+			if cat.ID == "" {
+				t.Errorf("Invalid category on source '%s'.", src.Name)
+			}
+		}
+	}
+}
+
 func TestFetchSourceDataConcurrency(t *testing.T) {
-	for name, source := range iprangeSources {
+	for name, source := range IPRangeSources {
 		t.Run(name, func(t *testing.T) {
 			var wg sync.WaitGroup
 			concurrentFetches := 5
@@ -73,7 +101,7 @@ func TestFetchSourceDataConcurrency(t *testing.T) {
 					}
 					t.Logf("OK: %s LastUpdate: %s ago.", source.Name, (time.Since(source.MetaData.LastUpdate)))
 				}()
-				time.Sleep(time.Millisecond * 200)
+				time.Sleep(time.Millisecond * 25)
 			}
 
 			wg.Wait()
