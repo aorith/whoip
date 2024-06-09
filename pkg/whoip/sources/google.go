@@ -1,8 +1,9 @@
-package whoip
+package sources
 
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"sync"
@@ -11,26 +12,23 @@ import (
 
 var googleMu sync.Mutex
 
-// fetchGoogleData fetches the Google data and updates the ProviderData struct.
-func fetchGoogleData(provider *ProviderData) error {
+// fetchGoogleData fetches the Google data and updates the MetaData.
+func fetchGoogleData(src *IPSource) error {
 	googleMu.Lock()
 	defer googleMu.Unlock()
 
-	if time.Since(provider.LastUpdate) < provider.RefreshInterval {
+	if time.Since(src.MetaData.LastUpdate) < src.RefreshInterval {
 		return nil // Data is up to date
 	}
 
-	pd, err := loadFromGob(provider.DataFilename)
-	if err == nil && time.Since(pd.LastUpdate) < provider.RefreshInterval {
-		provider.URL = pd.URL
-		provider.Name = pd.Name
-		provider.Description = pd.Description
-		provider.LastUpdate = pd.LastUpdate
-		provider.IPRanges = pd.IPRanges
+	if err := src.load(); err != nil {
+		log.Printf("Failed to load saved data: '%s'.", err)
+	} else {
+		// Data is still valid
 		return nil
 	}
 
-	resp, err := http.Get(provider.URL)
+	resp, err := http.Get(src.URL)
 	if err != nil {
 		return fmt.Errorf("failed to fetch data: %v", err)
 	}
@@ -70,12 +68,9 @@ func fetchGoogleData(provider *ProviderData) error {
 		})
 	}
 
-	provider.IPRanges.Prefixes = prefixes
-	provider.LastUpdate = time.Now()
-
-	if err = saveToGob(provider.DataFilename, *provider); err != nil {
-		return fmt.Errorf("failed to save data to Gob: %v", err)
-	}
+	src.MetaData.Prefixes = prefixes
+	src.MetaData.LastUpdate = time.Now()
+	src.mustSave()
 
 	return nil
 }
