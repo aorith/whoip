@@ -96,7 +96,6 @@ func (src *IPSource) mustSave() {
 func (src *IPSource) load() bool {
 	file, err := os.Open(src.DataFilename)
 	if err != nil {
-		log.Printf("Failed to open file '%s': %v", src.DataFilename, err)
 		return false
 	}
 	defer file.Close()
