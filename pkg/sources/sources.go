@@ -92,25 +92,29 @@ func (src *IPSource) mustSave() {
 }
 
 // load deserializes and loads the metadata from a file.
-func (src *IPSource) load() error {
+// returns true if the current data has been replaced false otherwise.
+func (src *IPSource) load() bool {
 	file, err := os.Open(src.DataFilename)
 	if err != nil {
-		return err
+		log.Printf("Failed to open file '%s': %v", src.DataFilename, err)
+		return false
 	}
 	defer file.Close()
 
 	var data IPMetaData
 	if err := gob.NewDecoder(file).Decode(&data); err != nil {
+		log.Printf("Failed to decode data file '%s': %v", src.DataFilename, err)
 		if removeErr := os.Remove(src.DataFilename); removeErr != nil {
 			log.Printf("Failed to remove corrupt data file '%s': %v", src.DataFilename, removeErr)
 		}
-		return err
+		return false
 	}
 
 	if time.Since(data.LastUpdate) < src.RefreshInterval {
 		src.MetaData = data
+		return true
 	}
-	return nil
+	return false
 }
 
 // Predefined IP range sources.

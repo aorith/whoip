@@ -3,7 +3,6 @@ package sources
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"time"
@@ -18,9 +17,7 @@ func fetchGoogleData(src *IPSource) error {
 		return nil // Data is up to date
 	}
 
-	if err := src.load(); err != nil {
-		log.Printf("Failed to load saved data: '%s'.", err)
-	} else {
+	if src.load() {
 		// Data is still valid
 		return nil
 	}
@@ -86,9 +83,7 @@ func fetchGoogleBotData(src *IPSource) error {
 		return nil // Data is up to date
 	}
 
-	if err := src.load(); err != nil {
-		log.Printf("Failed to load saved data: '%s'.", err)
-	} else {
+	if src.load() {
 		// Data is still valid
 		return nil
 	}
